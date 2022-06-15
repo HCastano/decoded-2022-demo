@@ -6,7 +6,8 @@ use ink_lang as ink;
 pub trait MyChainExtension {
     type ErrorCode = ExtensionError;
 
-    #[ink(extension = 1, returns_result = false)]
+    /// We can explicitly opt out of returning and handling a `Result` using
+    #[ink(extension = 1, returns_result = false, handle_status = false)]
     fn read(key: &[u8]) -> Vec<u8>;
 
     /// By default the chain extension assumes that our method call returns a `Result`.
@@ -14,7 +15,7 @@ pub trait MyChainExtension {
     fn read_small(key: &[u8]) -> Result<u32, ExtensionError>;
 }
 
-#[derive(scale::Encode, scale::Decode)]
+#[derive(Debug, scale::Encode, scale::Decode)]
 pub enum ExtensionError {
     SomethingWentWrong,
     EncodingFailed,
@@ -113,6 +114,18 @@ mod chain_extension {
         #[ink(message)]
         pub fn get(&self) -> bool {
             self.value
+        }
+
+        /// Example of how to use the `read` method of our chain extension
+        #[ink(message)]
+        pub fn read(&self) {
+            self.env().extension().read(&[1, 2, 3]);
+        }
+
+        /// Example of how to use the `read` method of our chain extension
+        #[ink(message)]
+        pub fn read_small(&self) {
+            self.env().extension().read_small(&[1, 2, 3]).unwrap();
         }
     }
 
