@@ -2,6 +2,43 @@
 
 use ink_lang as ink;
 
+#[ink::chain_extension]
+pub trait MyChainExtension {
+    type ErrorCode = ExtensionError;
+
+    #[ink(extension = 1, returns_result = false)]
+    fn read(key: &[u8]) -> Vec<u8>;
+
+    /// By default the chain extension assumes that our method call returns a `Result`.
+    #[ink(extension = 2)]
+    fn read_small(key: &[u8]) -> Result<u32, ExtensionError>;
+}
+
+#[derive(scale::Encode, scale::Decode)]
+pub enum ExtensionError {
+    SomethingWentWrong,
+    EncodingFailed,
+}
+
+// NANDO: We need to implement this manually, not clear from the docs that we need to do this
+impl ink_env::chain_extension::FromStatusCode for ExtensionError {
+    fn from_status_code(status_code: u32) -> Result<(), Self> {
+        match status_code {
+            0 => Ok(()),
+            1 => Err(Self::SomethingWentWrong),
+            2 => Err(Self::EncodingFailed),
+            _ => panic!("encountered unknown status code"),
+        }
+    }
+}
+
+// NANDO: The rand-extension example doesn't use this, but we need it...
+impl From<scale::Error> for ExtensionError {
+    fn from(_: scale::Error) -> Self {
+        Self::EncodingFailed
+    }
+}
+
 #[ink::contract]
 mod chain_extension {
 
