@@ -39,7 +39,42 @@ impl From<scale::Error> for ExtensionError {
     }
 }
 
-#[ink::contract]
+/// The `Environment` describes the _context_ in which our smart contract is executing in. More
+/// concretely it contains the properties of the blockchain in which our smart contracts are being
+/// executed. These properties include thing such as the types of accounts being used (`AccountId`)
+/// and the type of the block number used by the chain.
+///
+/// Since Substrate is a generic framework we are not able to make assumptions about these
+/// properties. It is prefectly fine for one chain to have `u32` block numbers and another to have
+/// `u128`.
+///
+/// The `DefaultEnvironment` matches the default properties set out in the Subtrate node template.
+use ink_env::{DefaultEnvironment, Environment};
+
+/// The default environment assumes that no chain extensions are present. However, we know there is
+/// at least one (we're implementing it!) so we need to update our `Environment` to match that.
+///
+/// We can re-use the rest of the properties from the `Default` environment since we haven't changed
+/// those.
+pub enum CustomEnvironment {}
+
+/// NANDO: Should probably link to the `Environment` trait docs in the chain extension documentation
+impl Environment for CustomEnvironment {
+    const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
+
+    type AccountId = <DefaultEnvironment as Environment>::AccountId;
+    type Balance = <DefaultEnvironment as Environment>::Balance;
+    type Hash = <DefaultEnvironment as Environment>::Hash;
+    type BlockNumber = <DefaultEnvironment as Environment>::BlockNumber;
+    type Timestamp = <DefaultEnvironment as Environment>::Timestamp;
+
+    type ChainExtension = MyChainExtension;
+}
+
+/// Now we need to tell our contract to use our custom environment.
+///
+/// This will give us access to the chain extension that we've defined.
+#[ink::contract(env = crate::CustomEnvironment)]
 mod chain_extension {
 
     /// Defines the storage of your contract.
