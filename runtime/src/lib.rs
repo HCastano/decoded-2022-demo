@@ -6,41 +6,18 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use frame_support::{
-    traits::OnRuntimeUpgrade,
-    weights::DispatchClass,
-};
-use frame_system::limits::{
-    BlockLength,
-    BlockWeights,
-};
-use pallet_contracts::{
-    migration,
-    weights::WeightInfo,
-    DefaultContractAccessWeight,
-};
+mod chain_extension;
+
+use frame_support::{traits::OnRuntimeUpgrade, weights::DispatchClass};
+use frame_system::limits::{BlockLength, BlockWeights};
+use pallet_contracts::{migration, weights::WeightInfo, DefaultContractAccessWeight};
 use sp_api::impl_runtime_apis;
-use sp_core::{
-    crypto::KeyTypeId,
-    OpaqueMetadata,
-};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-    create_runtime_str,
-    generic,
-    impl_opaque_keys,
-    traits::{
-        AccountIdLookup,
-        BlakeTwo256,
-        Block as BlockT,
-        IdentifyAccount,
-        Verify,
-    },
-    transaction_validity::{
-        TransactionSource,
-        TransactionValidity,
-    },
-    ApplyExtrinsicResult,
-    MultiSignature,
+    create_runtime_str, generic, impl_opaque_keys,
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify},
+    transaction_validity::{TransactionSource, TransactionValidity},
+    ApplyExtrinsicResult, MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -49,23 +26,13 @@ use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
-    construct_runtime,
-    parameter_types,
-    traits::{
-        ConstU32,
-        KeyOwnerProofSystem,
-        Randomness,
-        StorageInfo,
-    },
+    construct_runtime, parameter_types,
+    traits::{ConstU32, KeyOwnerProofSystem, Randomness, StorageInfo},
     weights::{
         constants::{
-            BlockExecutionWeight,
-            ExtrinsicBaseWeight,
-            RocksDbWeight,
-            WEIGHT_PER_SECOND,
+            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND,
         },
-        IdentityFee,
-        Weight,
+        IdentityFee, Weight,
     },
     StorageValue,
 };
@@ -75,10 +42,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{
-    Perbill,
-    Permill,
-};
+pub use sp_runtime::{Perbill, Permill};
 
 /// An index to a block.
 pub type BlockNumber = u32;
