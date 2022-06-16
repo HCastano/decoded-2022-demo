@@ -8,11 +8,7 @@ pub trait MyChainExtension {
 
     /// We can explicitly opt out of returning and handling a `Result` using
     #[ink(extension = 1, returns_result = false, handle_status = false)]
-    fn read(key: &[u8]) -> Vec<u8>;
-
-    /// By default the chain extension assumes that our method call returns a `Result`.
-    #[ink(extension = 2)]
-    fn read_small(key: &[u8]) -> Result<u32, ExtensionError>;
+    fn do_something(something: u32);
 }
 
 #[derive(Debug, scale::Encode, scale::Decode)]
@@ -27,7 +23,6 @@ impl ink_env::chain_extension::FromStatusCode for ExtensionError {
         match status_code {
             0 => Ok(()),
             1 => Err(Self::SomethingWentWrong),
-            2 => Err(Self::EncodingFailed),
             _ => panic!("encountered unknown status code"),
         }
     }
@@ -116,16 +111,13 @@ mod chain_extension {
             self.value
         }
 
-        /// Example of how to use the `read` method of our chain extension
+        /// Example of how to use the `do_something` method of our chain extension
+        ///
+        /// Note, we need to ensure we indicate that this call mutates state, otherwise it won't
+        /// work.
         #[ink(message)]
-        pub fn read(&self) {
-            self.env().extension().read(&[1, 2, 3]);
-        }
-
-        /// Example of how to use the `read` method of our chain extension
-        #[ink(message)]
-        pub fn read_small(&self) {
-            self.env().extension().read_small(&[1, 2, 3]).unwrap();
+        pub fn do_something(&mut self, something: u32) {
+            self.env().extension().do_something(something);
         }
     }
 
