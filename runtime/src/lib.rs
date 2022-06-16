@@ -316,7 +316,14 @@ impl pallet_contracts::Config for Runtime {
     type CallStack = [pallet_contracts::Frame<Self>; 31];
     type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
-    type ChainExtension = ();
+
+    /// By default this is empty, we need to manually tell the Contracts pallet what chain
+    /// extension we want to use.
+    ///
+    /// If we don't have this and try to deploy a contract which uses a chain extension we will end
+    /// up getting `CodeRejected` errors.
+    type ChainExtension = chain_extension::MyExtension;
+
     type DeletionQueueDepth = DeletionQueueDepth;
     type DeletionWeightLimit = DeletionWeightLimit;
     type Schedule = Schedule;
