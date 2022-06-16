@@ -334,6 +334,11 @@ impl pallet_contracts::Config for Runtime {
     type RelaxedMaxCodeLen = ConstU32<{ 512 * 1024 }>;
 }
 
+impl pallet_template::Config for Runtime {
+    /// The ubiquitous event type.
+    type Event = Event;
+}
+
 pub struct Migrations;
 impl OnRuntimeUpgrade for Migrations {
     fn on_runtime_upgrade() -> Weight {
@@ -356,6 +361,7 @@ construct_runtime!(
         TransactionPayment: pallet_transaction_payment,
         Sudo: pallet_sudo,
         Contracts: pallet_contracts,
+        Template: pallet_template,
     }
 );
 
