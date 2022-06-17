@@ -89,28 +89,6 @@ mod chain_extension {
             Self { value: init_value }
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-
         /// Example of how to use the `do_something` method of our chain extension
         ///
         /// Note, we need to ensure we indicate that this call mutates state, otherwise it won't
@@ -132,20 +110,10 @@ mod chain_extension {
         /// Imports `ink_lang` so we can use `#[ink::test]`.
         use ink_lang as ink;
 
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let chain_extension = ChainExtension::default();
-            assert_eq!(chain_extension.get(), false);
-        }
-
         /// We test a simple use case of our contract.
         #[ink::test]
         fn it_works() {
             let mut chain_extension = ChainExtension::new(false);
-            assert_eq!(chain_extension.get(), false);
-            chain_extension.flip();
-            assert_eq!(chain_extension.get(), true);
         }
     }
 }
