@@ -1,3 +1,5 @@
+use frame_support::traits::Get;
+use frame_system::RawOrigin;
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
 };
@@ -34,24 +36,32 @@ where
         let mut env = env.buf_in_buf_out();
 
         // This is the implementation block of the methods we declared on the ink! side of things.
-        // What you should know is that at this point we're writing "real" runtime code, so you need
-        // to be careful about tracking Weight and writing to storage.
+        //
+        // At this point we're writing runtime code, not smart contract code, so we need to be more
+        // careful! For instance, we now need to manually track our weight (i.e gas) usage.
         match func_id {
             1 => {
+                // This will read some bytes from the memory buffer mentioned above and try to
+                // decode them into the specified type. This method should only be used if the size
+                // of the type is known ahead of time.
                 let something: u32 = env.read_as()?;
 
-                // Need to `clone()` this since the `From` implementation doesn't cover references to
-                // `AccountId`s
-                let caller = env.ext().caller().clone();
-
-                // TODO: Need to charge weight for this. So we'll need to benchmark the
-                // `do_something` function and then use the generated weights.
+                // We need to ensure that we're charging weight to account for the amount of compute
+                // used by the call to our pallet. This is something we typically don't have to
+                // worry about in the context of smart contracts since they're gas metered.
                 //
-                // let weight = T::WeightInfo::do_something();
-                // env.charge_weight(weight);
-                // https://crates.parity.io/pallet_contracts/chain_extension/struct.Environment.html#method.charge_weight
+                // Ideally we should be using benchmarked results here
+                // (i.e `T::WeightInfo::do_something()`), but since we know how to calculate the
+                // weight manually we're gonna cheat for now.
+                let weight = 10_000 + T::DbWeight::get().writes(1);
+                env.charge_weight(weight)?;
+
+                // Using `env.ext()` we can access all sorts of info about the execution
+                // environment. You can this of this as equivalent to `self.env()` in an ink!
+                // contract.
+                let caller = env.ext().caller().clone();
                 pallet_template::Pallet::<T>::do_something(
-                    frame_system::RawOrigin::Signed(caller).into(),
+                    RawOrigin::Signed(caller).into(),
                     something,
                 )?;
             }
