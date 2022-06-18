@@ -2,6 +2,14 @@
 
 use ink_lang as ink;
 
+/// When we have a custom type we need to make sure that it can be encoded and decoded.
+#[derive(scale::Encode, scale::Decode)]
+pub struct Custom {
+    /// We want to demonstrate how to read dynamically sized types from a chain extension, so we'll
+    /// use a type, `Vec`, whose size we cannot necessarily calculate at compile time.
+    inner: ink_prelude::vec::Vec<u8>,
+}
+
 #[ink::chain_extension]
 pub trait MyChainExtension {
     type ErrorCode = ExtensionError;
@@ -9,11 +17,18 @@ pub trait MyChainExtension {
     /// We can explicitly opt out of returning and handling a `Result` using
     #[ink(extension = 1, returns_result = false, handle_status = false)]
     fn do_something(something: u32);
+
+    /// Here we want to demo what a chain extention with a custom type looks like.
+    ///
+    /// We also want to see how to handle errors which may arise when calling the extension.
+    #[ink(extension = 2)]
+    fn custom_type(custom: Custom) -> Result<(), ExtensionError>;
 }
 
 #[derive(Debug, scale::Encode, scale::Decode)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum ExtensionError {
-    SomethingWentWrong,
+    NotAPowerOfTwo,
     EncodingFailed,
 }
 
@@ -22,7 +37,7 @@ impl ink_env::chain_extension::FromStatusCode for ExtensionError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
             0 => Ok(()),
-            1 => Err(Self::SomethingWentWrong),
+            1 => Err(Self::NotAPowerOfTwo),
             _ => panic!("encountered unknown status code"),
         }
     }
@@ -97,6 +112,24 @@ mod chain_extension {
         pub fn do_something(&mut self, something: u32) {
             self.env().extension().do_something(something);
         }
+
+        #[ink(message)]
+        pub fn custom_type(
+            &mut self,
+            is_power_of_two: bool,
+        ) -> Result<(), crate::ExtensionError> {
+            let v = crate::Custom {
+                inner: if is_power_of_two {
+                    ink_prelude::vec![1, 2]
+                } else {
+                    ink_prelude::vec![1, 2, 3]
+                },
+            };
+
+            // Thanks to our `StatusCode` conversion we can easily handle the error using the `?`
+            // operator here.
+            Ok(self.env().extension().custom_type(v)?)
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
@@ -113,7 +146,7 @@ mod chain_extension {
         /// We test a simple use case of our contract.
         #[ink::test]
         fn it_works() {
-            let mut chain_extension = ChainExtension::new(false);
+            let _chain_extension = ChainExtension::new(false);
         }
     }
 }

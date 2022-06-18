@@ -1,9 +1,18 @@
+use frame_support::pallet_prelude::{Decode, Encode};
 use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use pallet_contracts::chain_extension::{
     ChainExtension, Environment, Ext, InitState, RetVal, SysConfig, UncheckedFrom,
 };
 use sp_runtime::DispatchError;
+
+/// This is the definition of the `Custom` type from our ink! contract. We need this type to match
+/// what we have in ink! in order for it to be correctly deserialized when we're reading it out of
+/// the buffer.
+#[derive(Encode, Decode)]
+struct CustomDef {
+    inner: sp_std::vec::Vec<u8>,
+}
 
 pub struct MyExtension;
 
@@ -63,6 +72,35 @@ where
                 pallet_template::Pallet::<T>::do_something(
                     RawOrigin::Signed(caller).into(),
                     something,
+                )?;
+            }
+            2 => {
+                // Since our type interally uses a `Vec` we don't know what the size of it will be
+                // ahead of time. This means we can't use `read_as()` which requires the size of the
+                // type to be known at compile time (put another way, `read_as()` requires
+                // `T: scale::MaxEncodedLen`.
+                //
+                // We must instead read only the amount of bytes we have gotten as an input.
+                let custom: CustomDef = env.read_as_unbounded(env.in_len())?;
+
+                // As mentioned before, we're cheating with this, but it'll do.
+                let weight = 10_000 + T::DbWeight::get().writes(1);
+                env.charge_weight(weight)?;
+
+                if !custom.inner.len().is_power_of_two() {
+                    // Remember that we have a `FromStatusCode` implementation in our contract which
+                    // will know to to handle this `RetVal` correctly.
+                    //
+                    // In our case this maps to our `ExtensionError::NotAPowerOfTwo` error.
+                    return Ok(RetVal::Converging(1));
+                }
+
+                // Here we don't do anything useful, we just store the length of our vector in
+                // storage.
+                let caller = env.ext().caller().clone();
+                pallet_template::Pallet::<T>::do_something(
+                    RawOrigin::Signed(caller).into(),
+                    custom.inner.len() as u32,
                 )?;
             }
             _ => panic!("Unrecognized function ID."),
