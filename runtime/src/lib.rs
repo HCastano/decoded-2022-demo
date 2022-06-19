@@ -346,6 +346,25 @@ impl pallet_template::Config for Runtime {
     type Event = Event;
 }
 
+parameter_types! {
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+        RuntimeBlockWeights::get().max_block;
+}
+
+impl pallet_scheduler::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = frame_system::EnsureSigned<AccountId>;
+    type OriginPrivilegeCmp = frame_support::traits::EqualPrivilegeOnly;
+    type MaxScheduledPerBlock = ConstU32<50>;
+    type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+    type PreimageProvider = ();
+    type NoPreimagePostponement = ();
+}
+
 pub struct Migrations;
 impl OnRuntimeUpgrade for Migrations {
     fn on_runtime_upgrade() -> Weight {
@@ -367,6 +386,7 @@ construct_runtime!(
         Authorship: pallet_authorship,
         TransactionPayment: pallet_transaction_payment,
         Sudo: pallet_sudo,
+        Scheduler: pallet_scheduler,
         Contracts: pallet_contracts,
         Template: pallet_template,
     }
