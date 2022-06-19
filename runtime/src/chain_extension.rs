@@ -26,7 +26,7 @@ pub struct MyExtension;
 // access to are things like: function arguments and weight information.
 impl<T> ChainExtension<T> for MyExtension
 where
-    T: pallet_contracts::Config + pallet_template::Config,
+    T: pallet_contracts::Config + pallet_template::Config + pallet_scheduler::Config,
 {
     fn call<E>(
         func_id: u32,
@@ -101,6 +101,29 @@ where
                 pallet_template::Pallet::<T>::do_something(
                     RawOrigin::Signed(caller).into(),
                     custom.inner.len() as u32,
+                )?;
+            }
+            3 => {
+                let at: u32 = env.read_as()?;
+                // let weight = T::WeightInfo::schedule(T::MaxScheduledPerBlock::get());
+                // env.charge_weight(weight)?;
+
+                let caller = env.ext().caller().clone();
+
+                let call: <T as pallet_scheduler::Config>::Call =
+                    frame_system::Call::remark {
+                        remark: 0u32.encode(),
+                    }
+                    .into();
+
+                let call = crate::Box::new(call.into());
+
+                pallet_scheduler::Pallet::<T>::schedule(
+                    RawOrigin::Signed(caller).into(),
+                    at.into(),
+                    None,
+                    Default::default(),
+                    call,
                 )?;
             }
             _ => panic!("Unrecognized function ID."),

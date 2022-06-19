@@ -23,6 +23,10 @@ pub trait MyChainExtension {
     /// We also want to see how to handle errors which may arise when calling the extension.
     #[ink(extension = 2)]
     fn custom_type(custom: Custom) -> Result<(), ExtensionError>;
+
+    // TODO: Change to BlockNumber or something
+    #[ink(extension = 3)]
+    fn schedule_call(at: u32) -> Result<(), ExtensionError>;
 }
 
 #[derive(Debug, scale::Encode, scale::Decode)]
@@ -97,6 +101,11 @@ mod chain_extension {
         value: bool,
     }
 
+    #[ink(event)]
+    pub struct SchedulerTriggered {
+        at: BlockNumber,
+    }
+
     impl ChainExtension {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
@@ -129,6 +138,18 @@ mod chain_extension {
             // Thanks to our `StatusCode` conversion we can easily handle the error using the `?`
             // operator here.
             Ok(self.env().extension().custom_type(v)?)
+        }
+
+        #[ink(message)]
+        pub fn schedule_call(&mut self, at: u32) -> Result<(), crate::ExtensionError> {
+            Ok(self.env().extension().schedule_call(at)?)
+        }
+
+        #[ink(message)]
+        pub fn scheduler_handler(&mut self) {
+            Self::env().emit_event(SchedulerTriggered {
+                at: self.env().block_number(),
+            });
         }
     }
 
