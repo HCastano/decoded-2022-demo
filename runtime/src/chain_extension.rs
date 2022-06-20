@@ -109,14 +109,39 @@ where
                 // env.charge_weight(weight)?;
 
                 let caller = env.ext().caller().clone();
+                // let call = pallet_contracts::Call::set_code {
+                //     dest: (),
+                //     code_hash: (),
+                // };
 
-                let call: <T as pallet_scheduler::Config>::Call =
-                    frame_system::Call::remark {
-                        remark: 0u32.encode(),
-                    }
-                    .into();
+                // let call = pallet_scheduler::Call::cancel {
+                //     when: 0.into(),
+                //     index: 0,
+                // };
 
-                let call = crate::Box::new(call.into());
+                // let call = crate::Call::Scheduler(pallet_scheduler::Call::cancel {
+                //     when: 0.into(),
+                //     index: 0,
+                // });
+
+                // let call: <T as pallet_scheduler::Config>::Call =
+                //     frame_system::Call::remark {
+                //         remark: 0u32.encode(),
+                //     }
+                //     .into();
+
+                let call = pallet_contracts::Call::remove_code {
+                    code_hash: Default::default(),
+                };
+
+                // let call = crate::Call::Contracts(pallet_contracts::Call::remove_code {
+                //     code_hash: Default::default(),
+                // });
+
+                use frame_support::traits::schedule::MaybeHashed;
+                let call = crate::Box::new(MaybeHashed::Value(call));
+
+                // let call = crate::Box::new(call.into());
 
                 pallet_scheduler::Pallet::<T>::schedule(
                     RawOrigin::Signed(caller).into(),
