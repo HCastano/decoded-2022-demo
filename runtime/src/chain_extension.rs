@@ -31,6 +31,10 @@ where
     // We need to be able to convert Runtime calls into Scheduler Pallet calls, since this is what
     // the Scheduler pallet's `schedule` dispatchable expects
     <T as pallet_scheduler::Config>::Call: From<crate::Call>,
+
+    // `pallet_contracts::call` expects a MultiAddress
+    sp_runtime::MultiAddress<sp_runtime::AccountId32, ()>:
+        From<<T as SysConfig>::AccountId>,
 {
     fn call<E>(
         func_id: u32,
@@ -112,16 +116,27 @@ where
                 // let weight = T::WeightInfo::schedule(T::MaxScheduledPerBlock::get());
                 // env.charge_weight(weight)?;
 
-                let caller = env.ext().caller().clone();
-
                 // let call: <T as pallet_scheduler::Config>::Call =
                 //     frame_system::Call::remark {
                 //         remark: 0u32.encode(),
                 //     }
                 //     .into();
 
-                let call = crate::Call::Contracts(pallet_contracts::Call::remove_code {
-                    code_hash: Default::default(),
+                let caller = env.ext().caller().clone();
+                let dest = env.ext().address().clone().into();
+                // let value = env.ext().value_transferred().into();
+                let gas_limit = env.ext().gas_meter().gas_left();
+
+                let mut data = crate::Vec::new();
+                let mut selector: crate::Vec<u8> = [0xC0, 0xFF, 0xEE].into();
+                data.append(&mut selector);
+
+                let call = crate::Call::Contracts(pallet_contracts::Call::call {
+                    dest,
+                    value: 0,
+                    gas_limit,
+                    storage_deposit_limit: None,
+                    data,
                 })
                 .into();
 

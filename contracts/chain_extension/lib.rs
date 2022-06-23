@@ -145,7 +145,7 @@ mod chain_extension {
             Ok(self.env().extension().schedule_call(at)?)
         }
 
-        #[ink(message)]
+        #[ink(message, selector = 0xC0FFEE)]
         pub fn scheduler_handler(&mut self) {
             Self::env().emit_event(SchedulerTriggered {
                 at: self.env().block_number(),
