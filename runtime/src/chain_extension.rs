@@ -27,6 +27,10 @@ pub struct MyExtension;
 impl<T> ChainExtension<T> for MyExtension
 where
     T: pallet_contracts::Config + pallet_template::Config + pallet_scheduler::Config,
+
+    // We need to be able to convert Runtime calls into Scheduler Pallet calls, since this is what
+    // the Scheduler pallet's `schedule` dispatchable expects
+    <T as pallet_scheduler::Config>::Call: From<crate::Call>,
 {
     fn call<E>(
         func_id: u32,
@@ -109,20 +113,6 @@ where
                 // env.charge_weight(weight)?;
 
                 let caller = env.ext().caller().clone();
-                // let call = pallet_contracts::Call::set_code {
-                //     dest: (),
-                //     code_hash: (),
-                // };
-
-                // let call = pallet_scheduler::Call::cancel {
-                //     when: 0.into(),
-                //     index: 0,
-                // };
-
-                // let call = crate::Call::Scheduler(pallet_scheduler::Call::cancel {
-                //     when: 0.into(),
-                //     index: 0,
-                // });
 
                 // let call: <T as pallet_scheduler::Config>::Call =
                 //     frame_system::Call::remark {
@@ -130,18 +120,13 @@ where
                 //     }
                 //     .into();
 
-                let call = pallet_contracts::Call::remove_code {
+                let call = crate::Call::Contracts(pallet_contracts::Call::remove_code {
                     code_hash: Default::default(),
-                };
-
-                // let call = crate::Call::Contracts(pallet_contracts::Call::remove_code {
-                //     code_hash: Default::default(),
-                // });
+                })
+                .into();
 
                 use frame_support::traits::schedule::MaybeHashed;
                 let call = crate::Box::new(MaybeHashed::Value(call));
-
-                // let call = crate::Box::new(call.into());
 
                 pallet_scheduler::Pallet::<T>::schedule(
                     RawOrigin::Signed(caller).into(),
