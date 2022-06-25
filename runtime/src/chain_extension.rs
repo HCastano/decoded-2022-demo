@@ -27,6 +27,16 @@ pub struct MyExtension;
 impl<T> ChainExtension<T> for MyExtension
 where
     T: pallet_contracts::Config + pallet_template::Config + pallet_scheduler::Config,
+
+    // The Scheduler pallet's `schedule()` dispatchable expects a Scheduler pallet Call. We can't
+    // construct this directly from a Contract pallet Call, but we can construct it from a Runtime
+    // call (which itself wraps a Contract pallet Call), so we express that requirement here.
+    <T as pallet_scheduler::Config>::Call: From<crate::Call>,
+
+    // `pallet_contracts::Call::call()` expects a `MultiAddress`, so we need to make sure this
+    // conversion can be done
+    sp_runtime::MultiAddress<sp_runtime::AccountId32, ()>:
+        From<<T as SysConfig>::AccountId>,
 {
     fn call<E>(
         func_id: u32,
@@ -109,39 +119,30 @@ where
                 // env.charge_weight(weight)?;
 
                 let caller = env.ext().caller().clone();
-                // let call = pallet_contracts::Call::set_code {
-                //     dest: (),
-                //     code_hash: (),
-                // };
+                let dest = env.ext().address().clone().into();
+                // let value = env.ext().value_transferred().into();
 
-                // let call = pallet_scheduler::Call::cancel {
-                //     when: 0.into(),
-                //     index: 0,
-                // };
+                // NOTE: About 5% of block weight worked for me here
+                let gas_limit = env.ext().gas_meter().gas_left();
 
-                // let call = crate::Call::Scheduler(pallet_scheduler::Call::cancel {
-                //     when: 0.into(),
-                //     index: 0,
-                // });
+                let mut data = crate::Vec::new();
 
-                // let call: <T as pallet_scheduler::Config>::Call =
-                //     frame_system::Call::remark {
-                //         remark: 0u32.encode(),
-                //     }
-                //     .into();
+                // If you're unsure about what the selector is, go check out the `metadata.json`
+                // file of the contract.
+                let mut selector: crate::Vec<u8> = [0x00, 0xC0, 0xFF, 0xEE].into();
+                data.append(&mut selector);
 
-                let call = pallet_contracts::Call::remove_code {
-                    code_hash: Default::default(),
-                };
-
-                // let call = crate::Call::Contracts(pallet_contracts::Call::remove_code {
-                //     code_hash: Default::default(),
-                // });
+                let call = crate::Call::Contracts(pallet_contracts::Call::call {
+                    dest,
+                    value: 0,
+                    gas_limit,
+                    storage_deposit_limit: None,
+                    data,
+                })
+                .into();
 
                 use frame_support::traits::schedule::MaybeHashed;
                 let call = crate::Box::new(MaybeHashed::Value(call));
-
-                // let call = crate::Box::new(call.into());
 
                 pallet_scheduler::Pallet::<T>::schedule(
                     RawOrigin::Signed(caller).into(),
