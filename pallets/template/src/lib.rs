@@ -16,30 +16,14 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::dispatch::Dispatchable;
     use frame_support::pallet_prelude::*;
-    use frame_support::traits::schedule::v2::Anon as ScheduleAnon;
-    use frame_support::traits::OriginTrait;
     use frame_system::pallet_prelude::*;
-
-    pub type PalletsOriginOf<T> =
-        <<T as frame_system::Config>::Origin as OriginTrait>::PalletsOrigin;
-    pub type CallOf<T> = <T as Config>::Call;
 
     /// Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type Call: Parameter + Dispatchable<Origin = Self::Origin> + From<Call<Self>>;
-
-        /// The Scheduler.
-        type Scheduler: ScheduleAnon<
-            Self::BlockNumber,
-            CallOf<Self>,
-            PalletsOriginOf<Self>,
-            Hash = Self::Hash,
-        >;
     }
 
     #[pallet::pallet]
@@ -113,27 +97,6 @@ pub mod pallet {
                     Ok(())
                 }
             }
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn schedule_contract_call(origin: OriginFor<T>, at: u32) -> DispatchResult {
-            let _who = ensure_signed(origin.clone())?;
-
-            use frame_support::traits::schedule::{DispatchTime, MaybeHashed};
-
-            let call = Call::do_something { something: 77 };
-            let dispatch_origin = origin.caller().clone();
-            let call = MaybeHashed::Value(call.into());
-
-            T::Scheduler::schedule(
-                DispatchTime::After(at.into()),
-                None,
-                Default::default(),
-                dispatch_origin,
-                call,
-            )?;
-
-            Ok(())
         }
     }
 }
