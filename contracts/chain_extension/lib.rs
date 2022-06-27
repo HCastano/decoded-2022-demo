@@ -14,17 +14,29 @@ pub struct Custom {
 pub trait MyChainExtension {
     type ErrorCode = ExtensionError;
 
-    /// We can explicitly opt out of returning and handling a `Result` using
+    /// Our first use case is simple, we just want to write a number to the state of our underlying
+    /// Substrate chain.
+    ///
+    /// By default we have to handle a `Result` from the chain extension, but we can explicitly opt
+    /// out of returning and handling a `Result` using these two attributes.
     #[ink(extension = 1, returns_result = false, handle_status = false)]
-    fn do_something(something: u32);
+    fn write_to_storage(value: u32);
 
     /// Here we want to demo what a chain extention with a custom type looks like.
     ///
     /// We also want to see how to handle errors which may arise when calling the extension.
+    ///
+    /// One thing to note here is that you can't use the associated type like we would in a normal
+    /// Rust trait definition (e.g `Result<(), Self::ErrorCode>`), but we instead have to use the
+    /// concrete type.
     #[ink(extension = 2)]
-    fn custom_type(custom: Custom) -> Result<(), ExtensionError>;
+    fn custom_type_with_result(custom: Custom) -> Result<(), ExtensionError>;
 
-    // TODO: Change to BlockNumber or something
+    /// For our final trick we will demonstrate bi-directional communication using chain
+    /// extensions.
+    ///
+    /// This means that we will use a chain extension to call the Scheduler pallet in order to
+    /// schedule a call which triggers an `#[ink(message)]` at some future point in time.
     #[ink(extension = 3)]
     fn schedule_call(at: u32) -> Result<(), ExtensionError>;
 }
@@ -32,22 +44,20 @@ pub trait MyChainExtension {
 #[derive(Debug, scale::Encode, scale::Decode)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum ExtensionError {
-    NotAPowerOfTwo,
+    CustomCallFailed,
     EncodingFailed,
 }
 
-// NANDO: We need to implement this manually, not clear from the docs that we need to do this
 impl ink_env::chain_extension::FromStatusCode for ExtensionError {
     fn from_status_code(status_code: u32) -> Result<(), Self> {
         match status_code {
             0 => Ok(()),
-            1 => Err(Self::NotAPowerOfTwo),
+            1 => Err(Self::CustomCallFailed),
             _ => panic!("encountered unknown status code"),
         }
     }
 }
 
-// NANDO: The rand-extension example doesn't use this, but we need it...
 impl From<scale::Error> for ExtensionError {
     fn from(_: scale::Error) -> Self {
         Self::EncodingFailed
@@ -73,7 +83,6 @@ use ink_env::{DefaultEnvironment, Environment};
 /// those.
 pub enum CustomEnvironment {}
 
-/// NANDO: Should probably link to the `Environment` trait docs in the chain extension documentation
 impl Environment for CustomEnvironment {
     const MAX_EVENT_TOPICS: usize = <DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
 
@@ -92,14 +101,8 @@ impl Environment for CustomEnvironment {
 #[ink::contract(env = crate::CustomEnvironment)]
 mod chain_extension {
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
     #[ink(storage)]
-    pub struct ChainExtension {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
-    }
+    pub struct ChainExtension {}
 
     #[ink(event)]
     pub struct SchedulerTriggered {
@@ -109,26 +112,24 @@ mod chain_extension {
     impl ChainExtension {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new() -> Self {
+            Self {}
         }
 
-        /// Example of how to use the `do_something` method of our chain extension
-        ///
         /// Note, we need to ensure we indicate that this call mutates state, otherwise it won't
         /// work.
         #[ink(message)]
-        pub fn do_something(&mut self, something: u32) {
-            self.env().extension().do_something(something);
+        pub fn write_to_storage(&mut self, value: u32) {
+            self.env().extension().write_to_storage(value);
         }
 
         #[ink(message)]
-        pub fn custom_type(
+        pub fn custom_type_with_result(
             &mut self,
-            is_power_of_two: bool,
+            success: bool,
         ) -> Result<(), crate::ExtensionError> {
             let v = crate::Custom {
-                inner: if is_power_of_two {
+                inner: if success {
                     ink_prelude::vec![1, 2]
                 } else {
                     ink_prelude::vec![1, 2, 3]
@@ -137,7 +138,7 @@ mod chain_extension {
 
             // Thanks to our `StatusCode` conversion we can easily handle the error using the `?`
             // operator here.
-            Ok(self.env().extension().custom_type(v)?)
+            Ok(self.env().extension().custom_type_with_result(v)?)
         }
 
         #[ink(message)]
@@ -150,24 +151,6 @@ mod chain_extension {
             Self::env().emit_event(SchedulerTriggered {
                 at: self.env().block_number(),
             });
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// Imports `ink_lang` so we can use `#[ink::test]`.
-        use ink_lang as ink;
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let _chain_extension = ChainExtension::new(false);
         }
     }
 }

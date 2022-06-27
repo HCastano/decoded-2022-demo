@@ -21,9 +21,6 @@ pub struct MyExtension;
 //
 // Just like when writing runtime code, if we want to access code from specific pallets we need to
 // specify that in our generic parameters.
-//
-// We will use the `Environment` to get access to the current execution context. What this gives us
-// access to are things like: function arguments and weight information.
 impl<T> ChainExtension<T> for MyExtension
 where
     T: pallet_contracts::Config + pallet_template::Config + pallet_scheduler::Config,
@@ -38,6 +35,8 @@ where
     sp_runtime::MultiAddress<sp_runtime::AccountId32, ()>:
         From<<T as SysConfig>::AccountId>,
 {
+    // We will use the `Environment` to get access to the current execution context. What this
+    // gives us access to are things like: function arguments and weight information.
     fn call<E>(
         func_id: u32,
         env: Environment<'_, '_, E, InitState>,
@@ -101,7 +100,7 @@ where
                     // Remember that we have a `FromStatusCode` implementation in our contract which
                     // will know to to handle this `RetVal` correctly.
                     //
-                    // In our case this maps to our `ExtensionError::NotAPowerOfTwo` error.
+                    // In our case this maps to our `ExtensionError::CustomCallFailed` error.
                     return Ok(RetVal::Converging(1));
                 }
 
@@ -129,6 +128,8 @@ where
 
                 // If you're unsure about what the selector is, go check out the `metadata.json`
                 // file of the contract.
+                //
+                // TODO: Maybe add an argument here so we can show how to encode it?
                 let mut selector: crate::Vec<u8> = [0x00, 0xC0, 0xFF, 0xEE].into();
                 data.append(&mut selector);
 
