@@ -107,6 +107,7 @@ mod chain_extension {
     #[ink(event)]
     pub struct SchedulerTriggered {
         at: BlockNumber,
+        arg: u32,
     }
 
     impl ChainExtension {
@@ -147,9 +148,10 @@ mod chain_extension {
         }
 
         #[ink(message, selector = 0xC0FFEE)]
-        pub fn scheduler_handler(&mut self) {
+        pub fn scheduler_handler(&mut self, arg: u32) {
             Self::env().emit_event(SchedulerTriggered {
                 at: self.env().block_number(),
+                arg,
             });
         }
     }

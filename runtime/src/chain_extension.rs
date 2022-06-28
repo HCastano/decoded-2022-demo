@@ -1,4 +1,5 @@
 use frame_support::pallet_prelude::{Decode, Encode};
+use frame_support::traits::tokens::currency::Currency;
 use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use pallet_contracts::chain_extension::{
@@ -29,6 +30,14 @@ where
     // construct this directly from a Contract pallet Call, but we can construct it from a Runtime
     // call (which itself wraps a Contract pallet Call), so we express that requirement here.
     <T as pallet_scheduler::Config>::Call: From<crate::Call>,
+
+    // Yeah, this is kinda ugly but if we want to use the `value` transferred by the smart
+    // contract while building our call we need to have this.
+    u128: From<
+        <<T as pallet_contracts::Config>::Currency as Currency<
+            <T as SysConfig>::AccountId,
+        >>::Balance,
+    >,
 
     // `pallet_contracts::Call::call()` expects a `MultiAddress`, so we need to make sure this
     // conversion can be done
@@ -129,7 +138,7 @@ where
 
                 let caller = env.ext().caller().clone();
                 let dest = env.ext().address().clone().into();
-                // let value = env.ext().value_transferred().into();
+                let value = env.ext().value_transferred().into();
 
                 // NOTE: About 5% of block weight worked for me here
                 let gas_limit = env.ext().gas_meter().gas_left();
@@ -138,14 +147,14 @@ where
 
                 // If you're unsure about what the selector is, go check out the `metadata.json`
                 // file of the contract.
-                //
-                // TODO: Maybe add an argument here so we can show how to encode it?
                 let mut selector: crate::Vec<u8> = [0x00, 0xC0, 0xFF, 0xEE].into();
+                let magic_number = 15663040;
                 data.append(&mut selector);
+                data.append(&mut magic_number.encode());
 
                 let call = crate::Call::Contracts(pallet_contracts::Call::call {
                     dest,
-                    value: 0,
+                    value,
                     gas_limit,
                     storage_deposit_limit: None,
                     data,
