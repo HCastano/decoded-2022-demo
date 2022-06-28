@@ -58,6 +58,7 @@ where
         // At this point we're writing runtime code, not smart contract code, so we need to be more
         // careful! For instance, we now need to manually track our weight (i.e gas) usage.
         match func_id {
+            // Corresponds to `write_to_storage()`
             1 => {
                 // This will read some bytes from the memory buffer mentioned above and try to
                 // decode them into the specified type. This method should only be used if the size
@@ -83,6 +84,7 @@ where
                     something,
                 )?;
             }
+            // Corresponds to `custom_type_with_result()`
             2 => {
                 // Since our type interally uses a `Vec` we don't know what the size of it will be
                 // ahead of time. This means we can't use `read_as()` which requires the size of the
@@ -112,10 +114,18 @@ where
                     custom.inner.len() as u32,
                 )?;
             }
+            // Corresponds to `schedule_call()`
             3 => {
                 let at: u32 = env.read_as()?;
-                // let weight = T::WeightInfo::schedule(T::MaxScheduledPerBlock::get());
-                // env.charge_weight(weight)?;
+
+                // We got this weight info by looking at the `schedule` dispatchable in the
+                // Scheduler pallet and using that.
+                use pallet_scheduler::WeightInfo;
+                let max_weight_per_block = T::MaxScheduledPerBlock::get();
+                let weight = <T as pallet_scheduler::Config>::WeightInfo::schedule(
+                    max_weight_per_block,
+                );
+                env.charge_weight(weight)?;
 
                 let caller = env.ext().caller().clone();
                 let dest = env.ext().address().clone().into();
